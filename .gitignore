@@ -1,0 +1,17 @@
+# Operating-system and editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Local archives, backups, and test output
+*.zip
+*.bak
+*.tmp
+*.log
+
+# WoW runtime data must never be committed into the addon source
+WTF/
+Logs/
+WoWCombatLog.txt

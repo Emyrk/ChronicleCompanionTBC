@@ -1,0 +1,37 @@
+## Interface: 20400
+## Title: ChronicleCompanionTBC
+## Notes: Companion addon for ChronicleClassic.com - TBC 2.4.3
+## Version: 0.1-tbc
+## DefaultState: enabled
+## Author: Emyrk
+## SavedVariables: ChronicleCompanionTBCDB
+## SavedVariablesPerCharacter: ChronicleCompanionTBCCharDB
+
+Core\Namespace.lua
+Core\Constants.lua
+Core\Logger.lua
+Core\Config.lua
+Core\Util.lua
+
+Capture\GearScan.lua
+Capture\TalentScan.lua
+Capture\GlyphScan.lua
+Capture\CIFormat.lua
+Capture\VehicleTracker.lua
+Capture\LocalScan.lua
+
+Transport\Relay.lua
+
+Providers\ResetProvider.lua
+Providers\ZoneProvider.lua
+Providers\HeaderProvider.lua
+Providers\VehicleProvider.lua
+Providers\PlayerListProvider.lua
+Providers\LootProvider.lua
+Providers\MetaProvider.lua
+
+UI\InspectUI.lua
+UI\RelayUI.lua
+UI\SettingsUI.lua
+
+Init.lua

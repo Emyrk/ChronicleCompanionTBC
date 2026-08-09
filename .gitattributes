@@ -1,0 +1,5 @@
+# WoW 2.4.3 requires CRLF in addon TOC files.
+*.toc text eol=crlf
+
+# Preserve binary addon artwork.
+*.tga binary
