@@ -72,6 +72,20 @@ local function onRelayEvent(kind, detail, sequence)
     appendFeed("#" .. tostring(sequence) .. " " .. kind .. "  " .. tostring(detail), r, g, b)
 end
 
+-- Match the WotLK relay monitor thresholds: clean is green, a small backlog is
+-- yellow, and more than two pending records is red. This frame uses one
+-- FontString per provider row, so inline color escapes isolate the dirty field.
+local function colorDirtyText(count)
+    count = tonumber(count) or 0
+    if count == 0 then
+        return "|cff45ff45dirty:0|r"
+    end
+    if count <= 2 then
+        return "|cffffd100dirty:" .. count .. "|r"
+    end
+    return "|cffff4d4ddirty:" .. count .. "|r"
+end
+
 local function updateBuckets(metrics)
     local nowMinute = math.floor(time() / 60)
     local advance = nowMinute - bucketMinute
@@ -140,7 +154,7 @@ local function refresh()
                 emitted = tostring(math.max(0, time() - stateRow.lastEmitAt)) .. "s ago"
             end
             line:SetText("#" .. i .. "  " .. stateRow.label ..
-                "    dirty:" .. tostring(stateRow.dirty) ..
+                "    " .. colorDirtyText(stateRow.dirty) ..
                 "    emit:" .. emitted ..
                 "    drop:" .. tostring(stateRow.dropped or 0))
         else
