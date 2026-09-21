@@ -142,7 +142,14 @@ end
 
 inspectFrame:SetScript("OnEvent", function(self, event)
     if event == "INSPECT_TALENT_READY" then
-        finishPending()
+        local matches = pendingUnit and Capture.InspectTalentBufferMatches(pendingUnit)
+        if matches then
+            finishPending()
+        else
+            -- The event can belong to another addon's inspect request. Keep
+            -- waiting for our unit instead of consuming the shared buffer.
+            Log:Debug("InspectUI: ignored stale inspect event for %s", tostring(pendingUnit))
+        end
     end
 end)
 

@@ -71,13 +71,24 @@ local function validateTabNames(tabs, unit)
     if not expected then return true end
 
     for i = 1, 3 do
-        if tabs[i] and expected[i] and tabs[i].name ~= expected[i] then
-            Log:Warn("TalentScan: inspect buffer mismatch for %s -- expected tab %d '%s', got '%s'",
-                tostring(unit), i, expected[i], tostring(tabs[i].name))
-            return false
+        local actual = tabs[i] and tabs[i].name
+        if expected[i] and actual ~= expected[i] then
+            return false, i, expected[i], actual
         end
     end
     return true
+end
+
+--- Check whether the current inspect talent buffer belongs to the unit's class.
+-- INSPECT_TALENT_READY has no unit argument on TBC, so unrelated or superseded
+-- inspect requests can fire while a different unit is pending.
+function Capture.InspectTalentBufferMatches(unit)
+    local tabs = {}
+    for i = 1, 3 do
+        local tabName = GetTalentTabInfo(i, true)
+        tabs[i] = { name = tabName }
+    end
+    return validateTabNames(tabs, unit)
 end
 
 function Capture.ScanTalents(unit, isInspect)
@@ -85,8 +96,13 @@ function Capture.ScanTalents(unit, isInspect)
     isInspect = isInspect or false
 
     local build = readBuild(isInspect)
-    if isInspect and not validateTabNames(build.tabs, unit) then
-        return nil
+    if isInspect then
+        local matches, tab, expected, actual = validateTabNames(build.tabs, unit)
+        if not matches then
+            Log:Debug("TalentScan: ignoring stale inspect buffer for %s -- expected tab %d '%s', got '%s'",
+                tostring(unit), tab, expected, tostring(actual))
+            return nil
+        end
     end
 
     local result = {

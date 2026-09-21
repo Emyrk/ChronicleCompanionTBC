@@ -757,18 +757,30 @@ end)
 -- We only mark the peer we most recently called NotifyInspect on.
 -- Track that via lastInspectGuid (declared near other inspect state above).
 
--- When inspect data arrives, just mark the cache fresh and kick.
--- The provider's next Poll() will find this player has data and emit it.
--- No need to explicitly dirty segments -- having fresh inspect data
--- means Poll() can now serve this player's G/T/I segments.
+-- Validate that the shared talent buffer matches the expected class before
+-- marking the cache fresh. Other addons and the inspect UI can issue their own
+-- requests, and this event does not identify which unit completed.
+-- The provider's next Poll() will emit matching data or retry a stale request.
 Chronicle.RegisterEvent("INSPECT_TALENT_READY", function()
     if lastInspectGuid and players[lastInspectGuid] then
-        inspectedGuids[lastInspectGuid] = time()
-        checkSpecChange(lastInspectGuid)
-        local name = UnitName(players[lastInspectGuid].unit) or lastInspectGuid
-        Log:Debug("PlayerList: inspect data ready for %s", name)
+        local pl = players[lastInspectGuid]
+        local matches, tab, expected, actual = Capture.InspectTalentBufferMatches(pl.unit)
+        if matches then
+            inspectedGuids[lastInspectGuid] = time()
+            checkSpecChange(lastInspectGuid)
+            local name = UnitName(pl.unit) or lastInspectGuid
+            Log:Debug("PlayerList: inspect data ready for %s", name)
+            lastInspectGuid = nil
+        else
+            -- Another addon or a superseded request may have populated the
+            -- shared inspect buffer. Leave this peer pending so Poll retries it.
+            inspectedGuids[lastInspectGuid] = nil
+            Log:Debug("PlayerList: ignored stale inspect event for %s -- expected tab %d '%s', got '%s'",
+                UnitName(pl.unit) or lastInspectGuid, tab, expected, tostring(actual))
+        end
+    else
+        lastInspectGuid = nil
     end
-    lastInspectGuid = nil
     Relay:Kick()
 end)
 
