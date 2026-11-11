@@ -8,16 +8,19 @@
 local Log = Chronicle.Logger
 local Capture = Chronicle.Capture
 
-local CLASS_TAB_NAMES = {
-    WARRIOR = { "Arms", "Fury", "Protection" },
-    PALADIN = { "Holy", "Protection", "Retribution" },
-    HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
-    ROGUE = { "Assassination", "Combat", "Subtlety" },
-    PRIEST = { "Discipline", "Holy", "Shadow" },
-    SHAMAN = { "Elemental", "Enhancement", "Restoration" },
-    MAGE = { "Arcane", "Fire", "Frost" },
-    WARLOCK = { "Affliction", "Demonology", "Destruction" },
-    DRUID = { "Balance", "Feral Combat", "Restoration" },
+-- GetTalentTabInfo display names are localized. Stock 2.4.3 FrameXML uses
+-- the fourth return value to load Interface\\TalentFrame\\<background>-*, and
+-- those background values keep a stable class prefix across all three trees.
+local CLASS_BACKGROUND_PREFIX = {
+    WARRIOR = "Warrior",
+    PALADIN = "Paladin",
+    HUNTER = "Hunter",
+    ROGUE = "Rogue",
+    PRIEST = "Priest",
+    SHAMAN = "Shaman",
+    MAGE = "Mage",
+    WARLOCK = "Warlock",
+    DRUID = "Druid",
 }
 
 local function readBuild(isInspect)
@@ -26,7 +29,8 @@ local function readBuild(isInspect)
     local rankParts = {}
 
     for tab = 1, numTabs do
-        local tabName, tabIcon, tabPoints = GetTalentTabInfo(tab, isInspect)
+        local tabName, tabIcon, tabPoints, tabBackground =
+            GetTalentTabInfo(tab, isInspect)
         local numTalents = GetNumTalents(tab, isInspect) or 0
         local talents = {}
         local rankDigits = {}
@@ -50,6 +54,7 @@ local function readBuild(isInspect)
         tabs[tab] = {
             name = tabName or ("Tab" .. tab),
             icon = tabIcon or "",
+            background = tabBackground or "",
             points = tabPoints or 0,
             talents = talents,
         }
@@ -62,18 +67,34 @@ local function readBuild(isInspect)
     }
 end
 
-local function validateTabNames(tabs, unit)
-    local locale = type(GetLocale) == "function" and GetLocale() or "enUS"
-    if locale ~= "enUS" and locale ~= "enGB" then return true end
+local function backgroundClass(background)
+    for classToken, prefix in pairs(CLASS_BACKGROUND_PREFIX) do
+        if background:sub(1, #prefix) == prefix then
+            return classToken
+        end
+    end
+    return nil
+end
 
+local function validateTabBackgrounds(tabs, unit)
     local _, classToken = UnitClass(unit)
-    local expected = classToken and CLASS_TAB_NAMES[classToken]
-    if not expected then return true end
+    local expectedPrefix = classToken and CLASS_BACKGROUND_PREFIX[classToken]
+    if not expectedPrefix then return true end
 
     for i = 1, 3 do
-        local actual = tabs[i] and tabs[i].name
-        if expected[i] and actual ~= expected[i] then
-            return false, i, expected[i], actual
+        local background = tabs[i] and tabs[i].background or ""
+        if background == "" then
+            return false, i, expectedPrefix, background
+        end
+
+        if background:sub(1, #expectedPrefix) ~= expectedPrefix then
+            local actualClass = backgroundClass(background)
+            if actualClass then
+                return false, i, expectedPrefix, background
+            end
+            -- Custom clients may use different asset names. Unknown non-empty
+            -- backgrounds cannot prove a race, so accept them rather than
+            -- dropping localized talent data.
         end
     end
     return true
@@ -85,10 +106,10 @@ end
 function Capture.InspectTalentBufferMatches(unit)
     local tabs = {}
     for i = 1, 3 do
-        local tabName = GetTalentTabInfo(i, true)
-        tabs[i] = { name = tabName }
+        local _, _, _, tabBackground = GetTalentTabInfo(i, true)
+        tabs[i] = { background = tabBackground or "" }
     end
-    return validateTabNames(tabs, unit)
+    return validateTabBackgrounds(tabs, unit)
 end
 
 function Capture.ScanTalents(unit, isInspect)
@@ -97,9 +118,9 @@ function Capture.ScanTalents(unit, isInspect)
 
     local build = readBuild(isInspect)
     if isInspect then
-        local matches, tab, expected, actual = validateTabNames(build.tabs, unit)
+        local matches, tab, expected, actual = validateTabBackgrounds(build.tabs, unit)
         if not matches then
-            Log:Debug("TalentScan: ignoring stale inspect buffer for %s -- expected tab %d '%s', got '%s'",
+            Log:Debug("TalentScan: ignoring stale inspect buffer for %s -- expected tab %d %s background, got '%s'",
                 tostring(unit), tab, expected, tostring(actual))
             return nil
         end

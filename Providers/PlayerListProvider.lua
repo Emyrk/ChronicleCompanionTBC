@@ -181,8 +181,10 @@ local function formatSegment(pl, key)
         local isInspect = not isSelf
         local talents = Capture.ScanTalents(unit, isInspect)
         if not talents and isInspect then
-            -- Buffer race -- invalidate cache so we re-inspect next Poll
+            -- Buffer race -- invalidate cache and keep this segment dirty so
+            -- Poll() re-inspects instead of treating talents as optional data.
             inspectedGuids[pl.guid] = nil
+            return nil, true
         end
         return Format.Talents(talents)
 
@@ -753,7 +755,7 @@ Chronicle.RegisterEvent("PLAYER_GUILD_UPDATE", function()
 end)
 
 -- Inspect data arrived for a peer
--- WoW 3.3.5a doesn't tell us WHICH player the inspect is for.
+-- WoW 2.4.3 doesn't tell us WHICH player the inspect is for.
 -- We only mark the peer we most recently called NotifyInspect on.
 -- Track that via lastInspectGuid (declared near other inspect state above).
 
@@ -775,7 +777,7 @@ Chronicle.RegisterEvent("INSPECT_TALENT_READY", function()
             -- Another addon or a superseded request may have populated the
             -- shared inspect buffer. Leave this peer pending so Poll retries it.
             inspectedGuids[lastInspectGuid] = nil
-            Log:Debug("PlayerList: ignored stale inspect event for %s -- expected tab %d '%s', got '%s'",
+            Log:Debug("PlayerList: ignored stale inspect event for %s -- expected tab %d %s background, got '%s'",
                 UnitName(pl.unit) or lastInspectGuid, tab, expected, tostring(actual))
         end
     else
@@ -797,7 +799,7 @@ local function onRosterChanged()
         Relay:Kick()
     end
 end
--- 3.3.5a roster events (GROUP_ROSTER_UPDATE does not exist on this client)
+-- 2.4.3 roster events (GROUP_ROSTER_UPDATE does not exist on this client)
 Chronicle.RegisterEvent("RAID_ROSTER_UPDATE", onRosterChanged)
 Chronicle.RegisterEvent("PARTY_MEMBERS_CHANGED", onRosterChanged)
 
