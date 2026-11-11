@@ -1,7 +1,7 @@
 ## Interface: 20400
 ## Title: ChronicleCompanionTBC
 ## Notes: Companion addon for ChronicleClassic.com - TBC 2.4.3
-## Version: 0.2-tbc
+## Version: 0.3-tbc
 ## DefaultState: enabled
 ## Author: Emyrk
 ## SavedVariables: ChronicleCompanionTBCDB
